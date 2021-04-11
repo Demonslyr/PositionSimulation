@@ -252,8 +252,8 @@ def ADDS(report,start,end):
         Adds.append([spawn,round(life_duration[i]/1000,2)])
     adds_events=[]
     for i in Adds:
-        lul.append(str("raid_events+=/adds,count=1,first=")+str(i[0])+str("duration=")+str(i[1]))
-        print("raid_events+=/adds,count=1,first=",i[0],"duration=",i[1])
+        lul.append(str("raid_events+=/adds,count=1,first=")+str(i[0])+str(",duration=")+str(i[1]))
+        #print("raid_events+=/adds,count=1,first=",i[0],"duration=",i[1])
     return adds_events
 
 
@@ -279,7 +279,7 @@ def drop_down_maker(creatureIDs):
     for i in range (0,len(creatureIDs)):
         if len(creatureIDs[i])>0:
             dd.append(names[i].strip('"'))
-    print(dd)
+    #print(dd)
     boss_selected=StringVar(root)
     dropdown=OptionMenu(root,boss_selected,*dd)
     dropdown.pack()
