@@ -252,7 +252,7 @@ def ADDS(report,start,end):
         Adds.append([spawn,round(life_duration[i]/1000,2)])
     adds_events=[]
     for i in Adds:
-        lul.append(str("raid_events+=/adds,count=1,first=")+str(i[0])+str(",duration=")+str(i[1]))
+        adds_events.append(str("raid_events+=/adds,count=1,first=")+str(i[0])+str(",duration=")+str(i[1]))
         #print("raid_events+=/adds,count=1,first=",i[0],"duration=",i[1])
     return adds_events
 
