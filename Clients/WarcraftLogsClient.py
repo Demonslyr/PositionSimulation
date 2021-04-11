@@ -1,55 +1,50 @@
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
-import http.client
+import requests
 import json
 
-
-
 class WarcraftLogsClient:
-  api_base_url = 'www.warcraftlogs.com'
+  api_base_url = 'https://www.warcraftlogs.com'
   api_base_path = '/api/v2'
+
   def __init__(self, client_id, client_secret):
     self.token = None
     self.client_id = client_id
     self.client_secret = client_secret
-    self.client_authority = ''
+    self.client_authority = 'https://www.warcraftlogs.com'
     self.client_scopes = ''
+    # Todo: See if requests.Session() requires any cleanup
+    self.session = requests.Session()
     self.refreshToken()
 
   def getToken(self):
-    return ''
+    if self.token is None:
+      self.refreshToken()
+    return self.token
 
   def refreshToken(self):
     # contrary to the name, this probably won't use the refresh token... it'll just nab a new one
+    # Additionally, this is just a form post with 3 params... is a lib actually needed to make a post and get a json object?
     client = BackendApplicationClient(client_id=self.client_id)
     oauth = OAuth2Session(client=client)
-    self.token = oauth.fetch_token(token_url='https://provider.com/oauth2/token', client_id=self.client_id,
+    self.token = oauth.fetch_token(token_url=f'{self.client_authority}/oauth/token',
+                                   client_id=self.client_id,
                                    client_secret=self.client_secret)
+    # Turns out these tokens are 30 day tokens. Should probably save the token response to the user directory and check
+    # for it and it's freshness on startup
 
-  def getReportPositionData(self,report_key):
-    import requests
-
-    session = requests.Session()
-    session.get("http://example.com")
-    # Connection is re-used
-    session.get("http://example.com")
-
-
-
-    conn = http.client.HTTPSConnection(self.api_base_url)
-    payload = str("{\"query\":\"{\\n  reportData {\\n    report(code: \\\"")+str(report)+str("\\\") {\\n      events(startTime: ")+str(start)+str(", endTime: ")+str(end)+str(", killType: Kills, hostilityType:Enemies, dataType: DamageTaken, limit: 10000, includeResources: true, targetInstanceID: ")+str(local_boss_ID)+str(" \\n      )\\n        {data nextPageTimestamp}\\n    }\\n  }\\n}\\n\"}")
-    # Todo: Convert the above payload to an unescaped dictionary and escape it with he json function
-    query = {
-      "query": f'{{reportData {{report(code: \"{report}\"){{fights(killType:Kills){{name startTime endTime encounterID}}}}}}}}'
-    }
-
+  def queryWclV2Api(self, query):
     payload = json.dumps(query)
     default_headers = {
       'Content-Type': "application/json"
     }
-    access_token = self.getToken()
-    default_headers.Authorization = f'Bearer {access_token}'
-    headers = default_headers
-    conn.request("POST", self.api_base_path, payload, headers)
-    res = conn.getresponse()
-    data = res.read()
+    token_dict = self.getToken()
+    default_headers.Authorization = f'Bearer {token_dict["access_token"]}'
+
+    response = self.session.post(url=f'{self.api_base_url}{self.api_base_path}',
+                                 json=payload,
+                                 headers=default_headers)
+    if response.status_code < 200 or response.status_code > 299:
+      # the response was bad, handle it
+      print('Response was not a 2xx status code')
+    return response.read()
