@@ -7,6 +7,7 @@ from WclLogParser import *
     from pathlib import Path
     home = str(Path.home())
 '''
+log_parser = WclLogParser()
 
 
 def create_bossDropdown(creatureIDs):
@@ -57,8 +58,7 @@ URL_entry = tk.Entry(root,width=50)
 URL_entry.pack()
 URL_entry.place(x=80,y=1)
 
-# A bit dirty but might remove a global. probably just pass the URL_Entry ref
-bGRAB = Button(root, text="Grab Log", command=lambda: grab_report_code(URL_entry.get()))
+bGRAB = Button(root, text="Grab Log", command= lambda: log_parser.configure(URL_entry.get()))
 bGRAB.pack()
 bGRAB.place(x=385)
 

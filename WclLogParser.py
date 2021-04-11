@@ -3,6 +3,23 @@ import re
 import math
 import json
 
+class WclLogParser:
+  report_id_regex = "/reports/(?P<report_id>[A-z0-9]+)"
+  def __init__(self):
+    self.reportId = None
+    self.encounterList = None
+    self.selectedBossId = None
+    self.reportData = None
+
+  def configure(self, report_url):
+    match = report_url.search(self.report_id_regex)
+    # Todo: handle none match here for dumb urls
+    self.reportId = match["report_id"]
+
+    local_IDs = get_boss_IDs(report)
+    drop_down_maker(local_IDs[0])
+
+
 global token
 token = {
   'Content-Type': "application/json",
