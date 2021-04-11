@@ -1,8 +1,7 @@
 import http.client
-import tkinter as tk 
-from tkinter import *
 import re
 import math
+import json
 
 global token
 token = {
@@ -45,7 +44,12 @@ def parse_position(report,start,end,boss_npcID,local_boss_ID):
 def get_start_end_EID(report,selection):
     
     conn = http.client.HTTPSConnection("www.warcraftlogs.com")
-    payload = str("{\"query\":\"{\\n    reportData {\\n    report(code: \\\"")+str(report)+str("\\\"){fights(killType:Kills){name startTime endTime encounterID}}}}\\n\"}")
+    #payload = str("{\"query\":\"{\\n    reportData {\\n    report(code: \\\"")+str(report)+str("\\\"){fights(killType:Kills){name startTime endTime encounterID}}}}\\n\"}")
+    query = {
+        "query": f'{{reportData {{report(code: \"{report}\"){{fights(killType:Kills){{name startTime endTime encounterID}}}}}}}}'
+    }
+
+    payload = json.dumps(query);
     headers = token
     conn.request("POST", "/api/v2", payload, headers)
     res = conn.getresponse()
