@@ -295,19 +295,19 @@ def parse_to_simc_handler(TXY):
 ########################################
 
 def ADDS(report,start,end):
-'''
-if a fight has adds, then we need to detect when those adds spawn, and when they die, as that is the minimum needed to create a raidevent of an add spawn
- right now every add spawn gets it's own raidEvent.
- this is fine for fights with a few adds (huntsman/innerva), but will make fights with lots of adds very messy (easy/obvious example is echos of sin on denathrius p1)
- the first potential solution to this that comes to mind is to collect all the add spawns as we currently do, but to compare the spawn times of the adds in the list, and then group all adds that spawn within a certain time window
- the obvious way of determining the duration of a group of adds is to calculate the average (mean or median) lifespan of the adds in that grouping. if we want to be fancy, simcraft has functionality for creating a distribution of durations given a mean and standard deviation
- One solvable complicating factor in doing this is when multiple adds spawn that have significantly different HPs, such that they die at very different times. the most obvious example of this is innerva, so some extra consideration should be made
-
-SMALL BUG: killing critters (such as killing a bug, ironically) shows their death in the logs, and therefore creates a raidevent of spawning an add with duration=0.0, which is dumb and pointless.
-EXAMPLE: https://www.warcraftlogs.com/reports/K1Y6fhxajZCq3mF9#fight=7&type=deaths&hostility=1
-  on huntsman a dusty widow dies to a fell rush @2:59, which creates the raidevent: raid_events+=/adds,count=1,first=179.58,duration=0.0,cooldown=9999
-*should add functionality to ignore any spawns whos duration is under a certain threshold to remove this clutter.
-'''
+    '''
+    if a fight has adds, then we need to detect when those adds spawn, and when they die, as that is the minimum needed to create a raidevent of an add spawn
+     right now every add spawn gets it's own raidEvent.
+     this is fine for fights with a few adds (huntsman/innerva), but will make fights with lots of adds very messy (easy/obvious example is echos of sin on denathrius p1)
+     the first potential solution to this that comes to mind is to collect all the add spawns as we currently do, but to compare the spawn times of the adds in the list, and then group all adds that spawn within a certain time window
+     the obvious way of determining the duration of a group of adds is to calculate the average (mean or median) lifespan of the adds in that grouping. if we want to be fancy, simcraft has functionality for creating a distribution of durations given a mean and standard deviation
+     One solvable complicating factor in doing this is when multiple adds spawn that have significantly different HPs, such that they die at very different times. the most obvious example of this is innerva, so some extra consideration should be made
+    
+    SMALL BUG: killing critters (such as killing a bug, ironically) shows their death in the logs, and therefore creates a raidevent of spawning an add with duration=0.0, which is dumb and pointless.
+    EXAMPLE: https://www.warcraftlogs.com/reports/K1Y6fhxajZCq3mF9#fight=7&type=deaths&hostility=1
+      on huntsman a dusty widow dies to a fell rush @2:59, which creates the raidevent: raid_events+=/adds,count=1,first=179.58,duration=0.0,cooldown=9999
+    *should add functionality to ignore any spawns whos duration is under a certain threshold to remove this clutter.
+    '''
     conn = http.client.HTTPSConnection("www.warcraftlogs.com")
     payload = str("{\"query\":\"{reportData {\\n    report(code: \\\"")+str(report)+str("\\\"){  table(startTime:")+str(start)+str(", endTime: ")+str(end)+str(",hostilityType:Enemies dataType:Deaths) }\\n\\n  \\n   \\n    }}\\n    \\n\"}")
     headers = token
