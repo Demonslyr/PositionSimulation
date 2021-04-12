@@ -41,8 +41,8 @@ def create_encounter_dropdown(creatureIDs):
 
 def GO():
   boss_selected.get()
-  TXY = data_parsing_handler(None)
-  out = parse_to_simc_handler(TXY)
+  TXY = WclLogParser.data_parsing_handler(None)
+  out = WclLogParser.parse_to_simc_handler(TXY)
   T.delete(1.0, ttk.END)
   for i in out:
     T.insert(ttk.END, str(i) + str('\n'))

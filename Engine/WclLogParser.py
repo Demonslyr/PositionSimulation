@@ -17,7 +17,7 @@ class WclLogParser:
     self.boss_descriptions: [dict[str, str]] = None
     self.encounter_descriptions: [dict[str, str]] = None
     # at some point request this configuration
-    self.wclClient = WarcraftLogsClient.WarcraftLogsClient("", "")
+    self.wclClient = WarcraftLogsClient.WarcraftLogsClient("id", "secret")
 
   def configure(self, report_url):
     match = re.search(self.report_id_regex, report_url)
@@ -26,17 +26,19 @@ class WclLogParser:
     self.get_encounter_data()
 
   def get_encounter_data(self):
-    # Todo: cleanup this string and switch to interpolation syntax
-    payload = f'{{\"query\":\"{{' \
+    # Todo: cleanup the query description but for now this is fine
+    payload = f'{{' \
                 f'rateLimitData {{limitPerHour pointsSpentThisHour pointsResetIn}}' \
-                f'reportData {{report(code: \"{self.reportId}\"){{' \
-                  f'masterData{{actors{{name id gameID}}}}}}' \
-                  f'fights(killType: Kills){{id,encounterID,startTime,endTime,name}}' \
+                f'reportData {{' \
+                  f'report(code: \"{self.reportId}\"){{' \
+                    f'masterData{{actors{{name id gameID}}}}' \
+                    f'fights(killType: Kills){{id,encounterID,startTime,endTime,name}}' \
+                  f'}}' \
                 f'}}' \
-              f'}}\"}}'
+              f'}}'
     results = self.wclClient.queryWclV2Api(payload)
-    self.boss_descriptions = results["data"]["reportData"]["masterData"]["actors"]
-    self.encounter_descriptions = results["data"]["reportData"]["fights"]
+    self.boss_descriptions = results["data"]["reportData"]["report"]["masterData"]["actors"]
+    self.encounter_descriptions = results["data"]["reportData"]["report"]["fights"]
 
 
 def get_boss_IDs_leg(report):

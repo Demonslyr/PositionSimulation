@@ -3,7 +3,6 @@ from requests_oauthlib import OAuth2Session
 import requests
 import json
 
-
 class WarcraftLogsClient:
   api_base_url = 'https://www.warcraftlogs.com'
   api_base_path = '/api/v2'
@@ -35,19 +34,6 @@ class WarcraftLogsClient:
     # for it and it's freshness on startup
 
   def queryWclV2Api(self, query):
-    payload = json.dumps(query)
-    payload = str(
-      "{\"query\":\"{\\n    rateLimitData {limitPerHour pointsSpentThisHour pointsResetIn}\\n    reportData {\\n    report(code: \\\"") + str(
-      "wQzWpdYF2bhX1jKk") + str(
-      "\\\"){ masterData{actors{name id gameID subType} \\n       }}}\\n\\n  \\n   \\n    }\\n    \\n\"}")
-
-    # ^ works:        "{"query":"{\n    rateLimitData {limitPerHour pointsSpentThisHour pointsResetIn}\n    reportData {\n    report(code: \"wQzWpdYF2bhX1jKk\"){ masterData{actors{name id gameID subType} \n       }}}\n\n  \n   \n    }\n    \n"}"
-    # doesn't work:   "{\"query\":\"{rateLimitData {limitPerHour pointsSpentThisHour pointsResetIn}reportData {report(code: \"wQzWpdYF2bhX1jKk\"){masterData{actors{name id gameID}}}fights(killType: Kills){id,encounterID,startTime,endTime,name}}}\"}"
-
-    # From insomnia client and works in client: | {"query":"{rateLimitData {limitPerHour pointsSpentThisHour pointsResetIn}reportData{report(code: \"wQzWpdYF2bhX1jKk\"){masterData{actors(subType: \"Boss\"){name,id,gameID,subType}},startTime,endTime,fights(killType: Kills){id,encounterID,startTime,endTime,name}}}}"}
-
-
-
     default_headers = {
       'Content-Type': "application/json"
     }
@@ -55,10 +41,9 @@ class WarcraftLogsClient:
     default_headers["Authorization"] = f'Bearer {token_dict["access_token"]}'
 
     response = self.session.post(url=f'{self.api_base_url}{self.api_base_path}',
-                                 data=payload,
+                                 json={"query": query},
                                  headers=default_headers)
     if response.status_code < 200 or response.status_code > 299:
       # Todo: the response was bad, handle it
-      raise ValueError(f'Response was not a 2xx status --code: {response.status_code} --payload: {payload} --content: {response.json()}')
-    print(f'--code: {response.status_code} --payload: {payload} --content: {response.content}')
+      raise ValueError(f'Response was not a 2xx status --code: {response.status_code}')
     return json.loads(response.content)
