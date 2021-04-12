@@ -9,27 +9,34 @@ class WclLogParser:
   report_id_regex = "/reports/(?P<report_id>[A-z0-9]+)"
 
   def __init__(self):
-    self.reportId = None
-    self.boss_ids = None
-    self.encounterList = None
-    self.selectedBossId = None
-    self.reportData = None
+    self.reportId: str = None
+    # self.boss_ids = None
+    # self.encounterList = None
+    self.selectedBossId: int = None
+    self.reportData: str = None
+    self.boss_descriptions: [dict[str, str]] = None
+    self.encounter_descriptions: [dict[str, str]] = None
     # at some point request this configuration
-    self.wclClient = WarcraftLogsClient("", "")
+    self.wclClient = WarcraftLogsClient("myClientId", "myClientSecret")
 
   def configure(self, report_url):
     match = report_url.search(self.report_id_regex)
     # Todo: handle none match here for dumb urls
     self.reportId = match["report_id"]
+    self.get_encounter_data()
 
-    local_IDs = get_boss_IDs(report)
-    drop_down_maker(local_IDs[0])
-
-  def get_boss_ids(self):
+  def get_encounter_data(self):
     # Todo: cleanup this string and switch to interpolation syntax
-    payload = f'{{\"query\":\"{{rateLimitData {{limitPerHour pointsSpentThisHour pointsResetIn}}reportData {{report(code: \\\"{report}\\\"){{ masterData{{actors{{name id gameID subType}}}}}}}}}}\"}}'
+    payload = f'{{\"query\":\"{{' \
+                f'rateLimitData {{limitPerHour pointsSpentThisHour pointsResetIn}}' \
+                f'reportData {{report(code: \"{report}\"){{' \
+                  f'masterData{{actors{{name id gameID}}}}}}' \
+                  f'fights(killType: Kills){{id,encounterID,startTime,endTime,name}}' \
+                f'}}' \
+              f'}}\"}}'
     results = self.wclClient.queryWclV2Api(payload)
-
+    self.boss_descriptions = results["data"]["reportData"]["masterData"]["actors"]
+    self.encounter_descriptions = results["data"]["reportData"]["fights"]
 
 
 def get_boss_IDs_leg(report):

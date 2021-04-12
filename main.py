@@ -1,5 +1,5 @@
 from tkinter import *
-from tkinter import tk
+from tkinter import ttk
 from WclLogParser import *
 '''
     consider using this to find the home directory to store client id/secret
@@ -9,8 +9,13 @@ from WclLogParser import *
 '''
 log_parser = WclLogParser()
 
+def grab_log_button_callback():
+  report_id = URL_entry.get()
+  log_parser.configure(report_id)
+  encounter_descriptions = log_parser.encounter_descriptions
+  create_encounter_dropdown(encounter_descriptions)
 
-def create_bossDropdown(creatureIDs):
+def create_encounter_dropdown(creatureIDs):
   global boss_selected
   dd = []
   for i in range(0, len(creatureIDs)):
@@ -37,28 +42,29 @@ def GO():
   boss_selected.get()
   TXY = data_parsing_handler(report)
   out = parse_to_simc_handler(TXY)
-  T.delete(1.0, tk.END)
+  T.delete(1.0, ttk.END)
   for i in out:
-    T.insert(tk.END, str(i) + str('\n'))
+    T.insert(ttk.END, str(i) + str('\n'))
 
-OUTPUT_TEXT = ''
+
+OUTPUT_TEXT: str = ''
 root = Tk()
 root.geometry('650x600')
 
-T = Text(root, height = 30, width = 80)
+T = Text(root, height=30, width=80)
 T.pack()
 T.place(x=2, y=100)
-T.insert(tk.END, OUTPUT_TEXT)
+T.insert(ttk.END, OUTPUT_TEXT)
 
 entrylabel=ttk.Label(root, text="WCL Log URL:")
 entrylabel.pack()
-entrylabel.place(x=0,y=0)
+entrylabel.place(x=0, y=0)
 #the entry box
-URL_entry = tk.Entry(root,width=50)
+URL_entry = ttk.Entry(root, width=50)
 URL_entry.pack()
-URL_entry.place(x=80,y=1)
+URL_entry.place(x=80, y=1)
 
-bGRAB = Button(root, text="Grab Log", command= lambda: log_parser.configure(URL_entry.get()))
+bGRAB = Button(root, text="Grab Log", command=grab_log_button_callback )
 bGRAB.pack()
 bGRAB.place(x=385)
 
