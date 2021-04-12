@@ -2,7 +2,7 @@ import http.client
 import re
 import math
 import json
-from .Clients.WarcraftLogsClient import WarcraftLogsClient
+from Clients import WarcraftLogsClient
 
 
 class WclLogParser:
@@ -17,7 +17,7 @@ class WclLogParser:
     self.boss_descriptions: [dict[str, str]] = None
     self.encounter_descriptions: [dict[str, str]] = None
     # at some point request this configuration
-    self.wclClient = WarcraftLogsClient("myClientId", "myClientSecret")
+    self.wclClient = WarcraftLogsClient.WarcraftLogsClient("myClientId", "myClientSecret")
 
   def configure(self, report_url):
     match = report_url.search(self.report_id_regex)

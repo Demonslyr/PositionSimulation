@@ -1,13 +1,14 @@
 from tkinter import *
-from tkinter import ttk
-from WclLogParser import *
+import tkinter as ttk
+from Engine import WclLogParser
+
 '''
     consider using this to find the home directory to store client id/secret
     
     from pathlib import Path
     home = str(Path.home())
 '''
-log_parser = WclLogParser()
+log_parser = WclLogParser.WclLogParser()
 
 def grab_log_button_callback():
   report_id = URL_entry.get()
@@ -19,8 +20,8 @@ def create_encounter_dropdown(creatureIDs):
   global boss_selected
   dd = []
   for i in range(0, len(creatureIDs)):
-    if len(creatureIDs[i]) > 0:
-      dd.append(names[i].strip('"'))
+    if len(creatureIDs) > 0:
+      dd.append(creatureIDs[i]["name"])
   print(dd)
   boss_selected = StringVar(root)
   dropdown = OptionMenu(root, boss_selected, *dd)
@@ -40,7 +41,7 @@ def create_encounter_dropdown(creatureIDs):
 
 def GO():
   boss_selected.get()
-  TXY = data_parsing_handler(report)
+  TXY = data_parsing_handler(None)
   out = parse_to_simc_handler(TXY)
   T.delete(1.0, ttk.END)
   for i in out:
