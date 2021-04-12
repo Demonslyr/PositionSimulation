@@ -8,7 +8,7 @@ import math
 global token
 token = {
         'Content-Type': "application/json",
-        'Authorization': "Bearer PUT YOUR TOKEN HERE
+        'Authorization': "Bearer PUT YOUR TOKEN HERE"
 }
 
 
