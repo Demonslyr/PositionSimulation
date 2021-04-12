@@ -2,14 +2,20 @@ import http.client
 import re
 import math
 import json
+from .Clients.WarcraftLogsClient import WarcraftLogsClient
+
 
 class WclLogParser:
   report_id_regex = "/reports/(?P<report_id>[A-z0-9]+)"
+
   def __init__(self):
     self.reportId = None
+    self.boss_ids = None
     self.encounterList = None
     self.selectedBossId = None
     self.reportData = None
+    # at some point request this configuration
+    self.wclClient = WarcraftLogsClient("", "")
 
   def configure(self, report_url):
     match = report_url.search(self.report_id_regex)
@@ -18,6 +24,45 @@ class WclLogParser:
 
     local_IDs = get_boss_IDs(report)
     drop_down_maker(local_IDs[0])
+
+  def get_boss_ids(self):
+    # Todo: cleanup this string and switch to interpolation syntax
+    payload = f'{{\"query\":\"{{rateLimitData {{limitPerHour pointsSpentThisHour pointsResetIn}}reportData {{report(code: \\\"{report}\\\"){{ masterData{{actors{{name id gameID subType}}}}}}}}}}\"}}'
+    results = self.wclClient.queryWclV2Api(payload)
+
+
+
+def get_boss_IDs_leg(report):
+  conn = http.client.HTTPSConnection("www.warcraftlogs.com")
+  payload = str(
+    "{\"query\":\"{\\n    rateLimitData {limitPerHour pointsSpentThisHour pointsResetIn}\\n    reportData {\\n    report(code: \\\"") + str(
+    report) + str(
+    "\\\"){ masterData{actors{name id gameID subType} \\n       }}}\\n\\n  \\n   \\n    }\\n    \\n\"}")
+  headers = token
+  conn.request("POST", "/api/v2", payload, headers)
+  res = conn.getresponse()
+  data = res.read().decode("utf-8")
+  # print(data)
+  # HORRIBLE EFFICIENCY, fix "later"
+  names = ['Shriekwing"', 'Huntsman Altimor"', 'Hungering Destroyer"', 'Lady Inerva Darkvein"',
+           'Sun King\'s Salvation"', "Artificer Xy\'mox\"", 'Council of Blood"', 'Sludgefist"',
+           'Stone Legion Generals"', 'Sire Denathrius"']
+  boss_npcIDs = [[], [], [], [], [], [], [], [], [], []]
+  boss_local_IDs = [[], [], [], [], [], [], [], [], [], []]
+  b = data.split(',{"name":"')
+  c = []
+  d = []
+  for k in b:
+    c.append(k.split(','))
+    # print(k)
+  for i in c:
+    if '"subType":"Boss"}' in i:
+      d.append(i)
+  for i in range(0, len(d)):
+    if d[i][0] in names:
+      boss_npcIDs[names.index(d[i][0])].append(d[i][1].strip('"id":'))
+      boss_local_IDs[names.index(d[i][0])].append(d[i][2].strip('"gameID":'))
+  return [boss_npcIDs, boss_local_IDs]
 
 
 global token
@@ -290,9 +335,6 @@ def grab_report_code():
   # print(report)
   local_IDs = get_boss_IDs(report)
   drop_down_maker(local_IDs[0])
-
-
-
 
   # most fights have some additional non-random mechanics that meaningfully impact DPS that the simulation should deal with
 

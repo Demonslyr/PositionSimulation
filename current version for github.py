@@ -3,18 +3,21 @@ import tkinter as tk
 from tkinter import *
 import re
 import math
+import json
 
 global token
 token = {
   'Content-Type': "application/json",
-  'Authorization': "Bearer "}
+  'Authorization': "Bearer PUT YOUR TOKEN HERE"
+}
 
 EIDtable = [2398, 2418, 2383, 2402, 2405, 2406, 2412, 2399, 2417,
-            2407]  # encounter IDs, currently unused, but keeping it here just in case while building out other functionality
+            2407]  # hard coding this for now, in the future I should probably enable looking up/grabbing EIDs
 names = ['Shriekwing"', 'Huntsman Altimor"', 'Hungering Destroyer"', 'Lady Inerva Darkvein"', 'Sun King\'s Salvation"',
          "Artificer Xy\'mox\"", 'Council of Blood"', 'Sludgefist"', 'Stone Legion Generals"', 'Sire Denathrius"']
 
 
+# 0                  1                       2                   3
 ##########################################
 def parse_position(report, start, end, boss_npcID, local_boss_ID):
   # print(report,start,end,boss_npcID,local_boss_ID)
@@ -48,16 +51,21 @@ def parse_position(report, start, end, boss_npcID, local_boss_ID):
   return ([NPT, TXY])
 
 
-# grabs the start time, end time, and encounter ID for the slection (EID NOT USED, BUT LEAVING IT HERE FOR FUTURE EXTENSIONS)
+# grabs the start time, end time, and encounter ID for the slection
 def get_start_end_EID(report, selection):
   conn = http.client.HTTPSConnection("www.warcraftlogs.com")
-  payload = str("{\"query\":\"{\\n    reportData {\\n    report(code: \\\"") + str(report) + str(
-    "\\\"){fights(killType:Kills){name startTime endTime encounterID}}}}\\n\"}")
+  # payload = str("{\"query\":\"{\\n    reportData {\\n    report(code: \\\"")+str(report)+str("\\\"){fights(killType:Kills){name startTime endTime encounterID}}}}\\n\"}")
+  query = {
+    "query": f'{{reportData {{report(code: \"{report}\"){{fights(killType:Kills){{name startTime endTime encounterID}}}}}}}}'
+  }
+
+  payload = json.dumps(query);
   headers = token
   conn.request("POST", "/api/v2", payload, headers)
   res = conn.getresponse()
   data = res.read().decode("utf-8")
   s1 = data.split('"name":"')
+  # print(s1)
   s2 = []
   for i in range(1, len(s1)):
     s2.append(s1[i].split(','))
@@ -192,7 +200,7 @@ def get_boss_IDs(report):
 
 # THE ONE THAT ORCHASTRATES IT ALL
 def data_parsing_handler(report):
-  global start, end
+  global start, end, stuff
   # determine the start/end time for that kill
   pick = str(boss_selected.get()) + str('"')
   IDs = get_boss_IDs(report)
@@ -203,7 +211,7 @@ def data_parsing_handler(report):
   local_boss_id = boss_local_IDs[names.index(pick)][0]
   # print(boss_npcID,local_boss_id)
   stuff = get_start_end_EID(report, pick)
-  # print(stuff)
+  print(stuff)
   start = stuff[0]
   end = stuff[1]
 
@@ -226,15 +234,71 @@ def data_parsing_handler(report):
   return TXY
 
 
+def ADDS(report, start, end):
+  conn = http.client.HTTPSConnection("www.warcraftlogs.com")
+  payload = str("{\"query\":\"{reportData {\\n    report(code: \\\"") + str(report) + str(
+    "\\\"){  table(startTime:") + str(start) + str(", endTime: ") + str(end) + str(
+    ",hostilityType:Enemies dataType:Deaths) }\\n\\n  \\n   \\n    }}\\n    \\n\"}")
+  headers = token
+  conn.request("POST", "/api/v2", payload, headers)
+  resp = conn.getresponse()
+  data = resp.read().decode("utf-8").split('}]},{')  # the magic string that splits the adds up nicely
+  data[0] = data[0].split('{"data":{"reportData":{"report":{"table":{"data":{"entries":[{')[
+    1]  # this is just to make the first index consistent with the rest of the splits
+
+  SPLIT_DATA = []
+  for i in range(0, len(data)):
+    ph = data[i].split(',')
+    SPLIT_DATA.append(ph)
+  deathWindow = []
+  timestamps = []
+  # there's probably a less convoluted way of doing this
+  for i in SPLIT_DATA:
+    # find the full strings that contain the substrings that I am looking for
+    dw = [p for p in i if '"deathWindow":' in p]
+    ts = [q for q in i if '"timestamp":' in q]
+    # then grab the actual indexes of those full strings
+    ph = i.index(dw[0])
+    ph2 = i.index(ts[0])
+    # print(i[ph])
+    # once we have found the elements we are interested in, append them to their corresponding lists.
+    deathWindow.append(i[ph])
+    timestamps.append(i[ph2])
+  death_times = []
+  life_duration = []
+  for i in range(0, len(
+      SPLIT_DATA) - 1):  # -1 because the table includes the bosses death, which  this function doesnt care about
+    death_times.append(int(timestamps[i].strip('"timestamp":')))  # timestamp is the time of death.
+    life_duration.append(int(deathWindow[i].strip('"deathWindow":')))  # deathWindow is how long it was alive
+
+  Adds = []  # format [spawn time,duration] for each add.
+  for i in range(0, len(death_times)):
+    # therefore we can determine spawn time =  death Timestamp - deathwindow, then i subtract the start time of the encounter to time times make sense.
+    spawn = round((death_times[i] - life_duration[i] - int(start)) / 1000, 2)
+    Adds.append([spawn, round(life_duration[i] / 1000, 2)])
+  adds_events = []
+  for i in Adds:
+    adds_events.append(
+      str("raid_events+=/adds,count=1,first=") + str(i[0]) + str(",duration=") + str(i[1]) + str(",cooldown=9999"))
+    # print("raid_events+=/adds,count=1,first=",i[0],"duration=",i[1])
+  return adds_events
+
+
 # takes the data from TXY, then converts it into a usable format (via TXY_to_TM), then slaps the data into the simcraft format
 def parse_to_simc_handler(TXY):
-  formated_moves = []
+  FIGHTS_WITH_ADDS = [2418, 2402, 2406, 2412, 2417,
+                      2407]  # list contains encounterIDs for: HUNTSMAN,INNERVA,SUN KING, COUNCIL, SLG, DENATHRIUS.
+  formated_events = []
   moves = movement_intervals(TXY_to_TM(TXY))
+  if int(stuff[2]) in FIGHTS_WITH_ADDS:
+    adds = ADDS(report, start, end)
+    for i in adds:
+      formated_events.append(i)
   for i in moves:
-    formated_moves.append(
+    formated_events.append(
       str("raid_events+=/movement,cooldown=9999,distance=") + str(i[3]) + str(",duration=") + str(i[2]) + str(
         ",first=") + str(i[0]))
-  return formated_moves
+  return formated_events
 
 
 def drop_down_maker(creatureIDs):
@@ -244,7 +308,7 @@ def drop_down_maker(creatureIDs):
   for i in range(0, len(creatureIDs)):
     if len(creatureIDs[i]) > 0:
       dd.append(names[i].strip('"'))
-  print(dd)
+  # print(dd)
   boss_selected = StringVar(root)
   dropdown = OptionMenu(root, boss_selected, *dd)
   dropdown.pack()

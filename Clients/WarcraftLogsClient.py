@@ -3,6 +3,7 @@ from requests_oauthlib import OAuth2Session
 import requests
 import json
 
+
 class WarcraftLogsClient:
   api_base_url = 'https://www.warcraftlogs.com'
   api_base_path = '/api/v2'
@@ -11,7 +12,7 @@ class WarcraftLogsClient:
     self.token = None
     self.client_id = client_id
     self.client_secret = client_secret
-    self.client_authority = 'https://www.warcraftlogs.com'
+    self.client_authority = 'https://www.warcraftlogs.com/oauth'
     self.client_scopes = ''
     # Todo: See if requests.Session() requires any cleanup
     self.session = requests.Session()
@@ -27,7 +28,7 @@ class WarcraftLogsClient:
     # Additionally, this is just a form post with 3 params... is a lib actually needed to make a post and get a json object?
     client = BackendApplicationClient(client_id=self.client_id)
     oauth = OAuth2Session(client=client)
-    self.token = oauth.fetch_token(token_url=f'{self.client_authority}/oauth/token',
+    self.token = oauth.fetch_token(token_url=f'{self.client_authority}/token',
                                    client_id=self.client_id,
                                    client_secret=self.client_secret)
     # Turns out these tokens are 30 day tokens. Should probably save the token response to the user directory and check
@@ -45,6 +46,6 @@ class WarcraftLogsClient:
                                  json=payload,
                                  headers=default_headers)
     if response.status_code < 200 or response.status_code > 299:
-      # the response was bad, handle it
-      print('Response was not a 2xx status code')
-    return response.read()
+      # Todo: the response was bad, handle it
+      raise ValueError('Response was not a 2xx status code')
+    return json.loads(response.json())
