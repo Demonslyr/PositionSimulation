@@ -16,15 +16,14 @@ def grab_log_button_callback():
   encounter_descriptions = log_parser.encounter_descriptions
   create_encounter_dropdown(encounter_descriptions)
 
-def create_encounter_dropdown(creatureIDs):
-  global boss_selected
+def create_encounter_dropdown(encounter_list):
   dd = []
-  for i in range(0, len(creatureIDs)):
-    if len(creatureIDs) > 0:
-      dd.append(creatureIDs[i]["name"])
+  for i in range(0, len(encounter_list)):
+    if len(encounter_list) > 0:
+      dd.append(encounter_list[i]["name"])
   print(dd)
-  boss_selected = StringVar(root)
-  dropdown = OptionMenu(root, boss_selected, *dd)
+  selected_encounter = StringVar(root)
+  dropdown = OptionMenu(root, selected_encounter, *dd)
   dropdown.pack()
   dropdown.place(x=10, y=50)
 
@@ -32,16 +31,15 @@ def create_encounter_dropdown(creatureIDs):
   encounterLabel.pack()
   encounterLabel.place(x=0, y=30)
 
-  bGO = Button(root, text='Generate SimCraft Movement Script', command=GO)
+  bGO = Button(root, text='Generate SimCraft Movement Script', command=lambda: GO(selected_encounter.get()))
   bGO.pack()
   bGO.place(x=300, y=50)
 
   # return boss_selected
 
 
-def GO():
-  boss_selected.get()
-  TXY = WclLogParser.data_parsing_handler(None)
+def GO(selected_encounter):
+  TXY = log_parser.data_parsing_handler(selected_encounter)
   out = WclLogParser.parse_to_simc_handler(TXY)
   T.delete(1.0, ttk.END)
   for i in out:

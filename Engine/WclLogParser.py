@@ -4,6 +4,8 @@ import math
 import json
 from Clients import WarcraftLogsClient
 
+# Test Log: https://www.warcraftlogs.com/reports/wQzWpdYF2bhX1jKk
+# https://www.warcraftlogs.com/reports/cjftM1Xn29h8qYRH
 
 class WclLogParser:
   report_id_regex = "/reports/(?P<report_id>[A-z0-9]+)"
@@ -13,11 +15,12 @@ class WclLogParser:
     # self.boss_ids = None
     # self.encounterList = None
     self.selectedBossId: int = None
+    # self.selected_encounter_info: dict[str, str] = None
     self.reportData: str = None
     self.boss_descriptions: [dict[str, str]] = None
     self.encounter_descriptions: [dict[str, str]] = None
     # at some point request this configuration
-    self.wclClient = WarcraftLogsClient.WarcraftLogsClient("id", "secret")
+    self.wclClient = WarcraftLogsClient.WarcraftLogsClient("id", "ckwit")
 
   def configure(self, report_url):
     match = re.search(self.report_id_regex, report_url)
@@ -31,7 +34,7 @@ class WclLogParser:
                 f'rateLimitData {{limitPerHour pointsSpentThisHour pointsResetIn}}' \
                 f'reportData {{' \
                   f'report(code: \"{self.reportId}\"){{' \
-                    f'masterData{{actors{{name id gameID}}}}' \
+                    f'masterData{{actors(subType: \"Boss\"){{name id gameID}}}}' \
                     f'fights(killType: Kills){{id,encounterID,startTime,endTime,name}}' \
                   f'}}' \
                 f'}}' \
@@ -40,39 +43,91 @@ class WclLogParser:
     self.boss_descriptions = results["data"]["reportData"]["report"]["masterData"]["actors"]
     self.encounter_descriptions = results["data"]["reportData"]["report"]["fights"]
 
+  def data_parsing_handler(self, selected_encounter):
+    selected_encounter_info: dict[str, str] = next((i for i in self.encounter_descriptions if i["name"] == selected_encounter), None)
 
-def get_boss_IDs_leg(report):
-  conn = http.client.HTTPSConnection("www.warcraftlogs.com")
-  payload = str(
-    "{\"query\":\"{\\n    rateLimitData {limitPerHour pointsSpentThisHour pointsResetIn}\\n    reportData {\\n    report(code: \\\"") + str(
-    report) + str(
-    "\\\"){ masterData{actors{name id gameID subType} \\n       }}}\\n\\n  \\n   \\n    }\\n    \\n\"}")
-  headers = token
-  conn.request("POST", "/api/v2", payload, headers)
-  res = conn.getresponse()
-  data = res.read().decode("utf-8")
-  # print(data)
-  # HORRIBLE EFFICIENCY, fix "later"
-  names = ['Shriekwing"', 'Huntsman Altimor"', 'Hungering Destroyer"', 'Lady Inerva Darkvein"',
-           'Sun King\'s Salvation"', "Artificer Xy\'mox\"", 'Council of Blood"', 'Sludgefist"',
-           'Stone Legion Generals"', 'Sire Denathrius"']
-  boss_npcIDs = [[], [], [], [], [], [], [], [], [], []]
-  boss_local_IDs = [[], [], [], [], [], [], [], [], [], []]
-  b = data.split(',{"name":"')
-  c = []
-  d = []
-  for k in b:
-    c.append(k.split(','))
-    # print(k)
-  for i in c:
-    if '"subType":"Boss"}' in i:
-      d.append(i)
-  for i in range(0, len(d)):
-    if d[i][0] in names:
-      boss_npcIDs[names.index(d[i][0])].append(d[i][1].strip('"id":'))
-      boss_local_IDs[names.index(d[i][0])].append(d[i][2].strip('"gameID":'))
-  return [boss_npcIDs, boss_local_IDs]
+    print(selected_encounter) # Looks like: Shriekwing
+    print(selected_encounter_info) # Looks like: {'id': 1, 'encounterID': 2398, 'startTime': 0, 'endTime': 235031, 'name': 'Shriekwing'}
+    print(self.boss_descriptions) # Looks like: [{'name': 'Shriekwing', 'id': 2, 'gameID': 164406}, {'name': 'Sludgefist', 'id': 25, 'gameID': 164407}, {'name': 'General Kaal', 'id': 29, 'gameID': 168112}, {'name': 'General Grashaal', 'id': 31, 'gameID': 168113}]
 
+    # Detect None here and stop the operation before displaying an error message
+    # determine the start/end time for that kill
+    #pick = str(boss_selected.get()) + str('"')
+    #IDs = get_boss_IDs(report)
+    #boss_npcIDs, boss_local_IDs = IDs[0], IDs[1]
+    # print(pick)
+    # for i in names: print(i,pick)
+    # in the boss descriptions: boss_npcID = boss_npcIDs[names.index(pick)][0]
+    # in the boss descriptions: local_boss_id = boss_local_IDs[names.index(pick)][0]
+    # print(boss_npcID,local_boss_id)
+    # Not required: stuff = get_start_end_EID(report, pick)
+    # print(stuff)
+    # Start is in selected Encounter: start = stuff[0]
+    # End is in selected Encounter: end = stuff[1]
+
+    # ENCOUNTER_ID = EIDtable[names.index(pick)]
+
+    # print('boss_ID:',boss_ID,'ENCOUNTER_ID:',ENCOUNTER_ID, 'start:',start,'end:',end)
+
+    # grab all the position data for that boss
+    # ppd expected properties: x,y,event_time
+    player_position_data = self.get_player_position_data(selected_encounter_info, self.boss_descriptions)
+
+    NPT, TXY = parse_position(report, start, end, boss_npcID, local_boss_id)[0], \
+               parse_position(report, start, end, boss_npcID, local_boss_id)[1]
+    # print(output[0],NPT)
+    # print(NPT)
+    while NPT != 'null':
+      # print('not null')
+      # print('start was',start,'\n','NPT is',NPT, 'end =',end)
+      ph = parse_position(report, NPT, end, boss_npcID, local_boss_id)
+      NPT = ph[0]
+      for i in ph[1]:
+        TXY.append(i)
+    return TXY
+
+  def get_player_position_data(self, selected_encounter_info,boss_descriptions):
+    payload = f'{{' \
+                f'rateLimitData {{limitPerHour pointsSpentThisHour pointsResetIn}}' \
+                f'reportData {{' \
+                  f'report(code: \"{self.reportId}\"){{' \
+                    f'events(startTime: {selected_encounter_info["startTime"]}, endTime: {selected_encounter_info["endTime"]}, killType: Kills, hostilityType:Enemies, dataType: DamageTaken, limit: 1000, includeResources: true){{data,nextPageTimestamp}}' \
+                  f'}}' \
+                f'}}' \
+              f'}}'
+    results = self.wclClient.queryWclV2Api(payload)
+    # selected_encounter_info, boss_descriptions
+
+  def parse_position(self, report, start, end, boss_npcID, local_boss_ID):
+    # print(report,start,end,boss_npcID,local_boss_ID)
+    conn = http.client.HTTPSConnection("www.warcraftlogs.com")
+    payload = str("{\"query\":\"{\\n  reportData {\\n    report(code: \\\"") + str(report) + str(
+      "\\\") {\\n      events(startTime: ") + str(start) + str(", endTime: ") + str(end) + str(
+      ", killType: Kills, hostilityType:Enemies, dataType: DamageTaken, limit: 10000, includeResources: true, targetInstanceID: ") + str(
+      local_boss_ID) + str(" \\n      )\\n        {data nextPageTimestamp}\\n    }\\n  }\\n}\\n\"}")
+    headers = token
+    conn.request("POST", "/api/v2", payload, headers)
+    res = conn.getresponse()
+    data = res.read()
+    # cleaning the data up a bit
+    k = data.decode("utf-8").split("{\"timestamp\":")
+    hasNPT = (k[-1].split('"nextPageTimestamp":'))
+    NPT = hasNPT[-1].strip('}')
+    hasxy = []
+    for i in k:
+      if re.search((str("\"targetID\":") + str(boss_npcID) + str(".+\"x\":.+")), i):
+        hasxy.append(i.split(
+          ','))  # if it has an x coordinate, then throw it in our list as a self contained list of all of the returned parameters
+    # NOT ALL OF THE ENTITIES IN OUR LIST HAVE THE X/Y COORDS AT THE SAME INDEX.
+    TXY = []
+    for a in hasxy:
+      ph = 0
+      for b in a:
+        if (re.search('\"x\":', b)):  # janky, but it finds where theres an x coordinate
+          TXY.append([a[0], b, a[ph + 1]])  # then slaps the corresponding timestamp, the x and the y into TXY
+        ph += 1
+    # print('len(TXY)',len(TXY))
+    return ([NPT, TXY])
 
 global token
 token = {
@@ -265,7 +320,7 @@ def get_boss_IDs(report):
 
 
 # THE ONE THAT ORCHASTRATES IT ALL
-def data_parsing_handler(report):
+def data_parsing_handler_leg(selectedBoss):
   global start, end
   # determine the start/end time for that kill
   pick = str(boss_selected.get()) + str('"')
